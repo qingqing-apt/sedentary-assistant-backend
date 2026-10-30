@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="680" height="452" viewBox="0 0 680 452" role="img">
+<title>久坐活动助手系统架构</title>
+<desc>客户端为浏览器与 Android APK，前端用 React 加 CopilotKit，业务数据走 REST 直达 FastAPI，对话走 CopilotKit Runtime 转发到后端 Agent 端点，后端连接 SQLite 与 DeepSeek。</desc>
+<style>
+  text { font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif; }
+  .th { font-size: 14px; font-weight: 500; }
+  .ts { font-size: 12px; font-weight: 400; }
+</style>
+<defs>
+  <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+    <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </marker>
+</defs>
+
+<text class="th" x="40" y="26" fill="#2C2C2A">久坐活动助手 · 系统架构</text>
+<text class="ts" x="40" y="45" fill="#5F5E5A">两条链路：REST 管业务数据，AG-UI 管对话</text>
+
+<rect x="40" y="60" width="600" height="46" rx="10" fill="#F1EFE8" stroke="#888780" stroke-width="0.5"/>
+<text class="th" x="60" y="78" fill="#444441">客户端</text>
+<text class="ts" x="60" y="95" fill="#444441">浏览器 Web</text>
+<text class="ts" x="200" y="95" fill="#444441">Android APK（Capacitor WebView）</text>
+<text class="ts" x="470" y="95" fill="#444441">同一份前端代码</text>
+<path d="M340 106 L340 116" fill="none" stroke="#888780" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+<rect x="40" y="120" width="600" height="64" rx="10" fill="#E1F5EE" stroke="#1D9E75" stroke-width="0.5"/>
+<text class="th" x="60" y="140" fill="#0F6E56">前端 · React + TypeScript</text>
+<text class="ts" x="60" y="160" fill="#0F6E56">业务页面：今日 / 统计 / 设置</text>
+<text class="ts" x="60" y="176" fill="#0F6E56">按钮式建议（可降级规则版）</text>
+<text class="ts" x="360" y="160" fill="#0F6E56">CopilotKit 对话面板</text>
+<text class="ts" x="360" y="176" fill="#0F6E56">桌面浮层 / 移动端内嵌</text>
+
+<path d="M170 184 L170 256" fill="none" stroke="#888780" stroke-width="1.5" marker-end="url(#arrow)"/>
+<text class="ts" x="160" y="224" text-anchor="end" fill="#5F5E5A">/api/*</text>
+
+<path d="M500 184 L500 194" fill="none" stroke="#1D9E75" stroke-width="1.5" marker-end="url(#arrow)"/>
+<text class="ts" x="492" y="182" text-anchor="end" fill="#0F6E56">/api/copilotkit</text>
+
+<rect x="380" y="194" width="260" height="50" rx="10" fill="#E1F5EE" stroke="#1D9E75" stroke-width="0.5"/>
+<text class="th" x="400" y="213" fill="#0F6E56">CopilotKit Runtime :3000</text>
+<text class="ts" x="400" y="231" fill="#0F6E56">转发 AG-UI · 反射 CORS</text>
+<path d="M500 244 L500 256" fill="none" stroke="#1D9E75" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+<rect x="40" y="260" width="600" height="96" rx="10" fill="#E1F5EE" stroke="#1D9E75" stroke-width="0.5"/>
+<text class="th" x="60" y="280" fill="#0F6E56">后端 · FastAPI :8000</text>
+<text class="ts" x="60" y="302" fill="#0F6E56">REST 路由</text>
+<text class="ts" x="60" y="322" fill="#0F6E56">排程算法（纯函数 + 单测）</text>
+<text class="ts" x="60" y="342" fill="#0F6E56">状态机 · 提议单</text>
+<text class="ts" x="360" y="302" fill="#0F6E56">Agent 端点 /api/agent/chat</text>
+<text class="ts" x="360" y="322" fill="#0F6E56">7 个业务工具（5 读 1 提议 1 写）</text>
+<text class="ts" x="360" y="342" fill="#0F6E56">身份隔离（ContextVar）</text>
+
+<path d="M200 356 L200 368" fill="none" stroke="#888780" stroke-width="1.5" marker-end="url(#arrow)"/>
+<path d="M500 356 L500 368" fill="none" stroke="#1D9E75" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+<rect x="40" y="372" width="320" height="50" rx="10" fill="#F1EFE8" stroke="#888780" stroke-width="0.5"/>
+<text class="th" x="60" y="391" fill="#444441">SQLite</text>
+<text class="ts" x="60" y="409" fill="#444441">settings / activities / proposals</text>
+
+<rect x="380" y="372" width="260" height="50" rx="10" fill="#E1F5EE" stroke="#1D9E75" stroke-width="0.5"/>
+<text class="th" x="400" y="391" fill="#0F6E56">DeepSeek</text>
+<text class="ts" x="400" y="409" fill="#0F6E56">deepseek-chat · 实测 1.1~1.4s</text>
+
+<text class="ts" x="40" y="442" fill="#5F5E5A">对话链路在 APK 里只是地址不同（10.0.2.2），三层结构与 Web 完全一致</text>
+</svg>
