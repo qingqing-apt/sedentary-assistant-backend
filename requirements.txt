@@ -1,0 +1,15 @@
+fastapi==0.141.1
+uvicorn[standard]==0.34.0
+sqlalchemy==2.0.36
+pydantic==2.14.2
+pydantic-settings==2.7.0
+httpx==0.28.1
+tzdata==2024.2
+pytest==8.3.4
+
+# ---- Microsoft Agent Framework + AG-UI（对话式 Agent）----
+# 注意：这三个包会把 fastapi / pydantic / starlette 拉到较新版本，
+# 上面钉的版本就是为了跟它们对齐，不要单独降级其中一个。
+agent-framework==1.23.0
+agent-framework-ag-ui==1.7.0
+agent-framework-openai==1.17.0
