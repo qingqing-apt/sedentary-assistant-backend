@@ -233,6 +233,70 @@ pending ──新建议──> superseded （同一用户同一天只留一张�
 
 ---
 
+## 每日总结
+
+### GET /api/summary/daily?date=YYYY-MM-DD
+
+按天读日报。`date` 缺省为**昨天**（今天还没过完，完成率没有意义）。
+未来日期 → 400 `FUTURE_DATE`；格式不是 `YYYY-MM-DD` → 400 `INVALID_DATE`。
+
+```json
+{
+  "date": "2026-11-02",
+  "state": "not_generated",
+  "stats": {
+    "date": "2026-11-02",
+    "total": 3,
+    "completed": 1,
+    "postponed": 0,
+    "skipped": 0,
+    "pending": 2,
+    "completion_rate": 33
+  },
+  "summary": null
+}
+```
+
+`state` 只有两种取值：
+
+| state | summary | 含义 |
+|---|---|---|
+| `not_generated` | `null` | 这天没有生成过总结 |
+| `generated` | 对象 | 生成过，字段见下 |
+
+**`stats` 与 `state` 无关**，每次从 `activities` 现算。生成总结之后再补记活动，数字依然是真实的——
+这正是「不落库统计数字」的原因：抄一份下来会立刻过期。
+
+`not_generated` 时前端必须显示「尚未生成」，**不能拿 `stats` 拼一段话顶上**。
+
+### POST /api/summary/daily?date=YYYY-MM-DD
+
+生成并落库，需要登录态。重复调用覆盖旧内容并刷新 `generated_at`。
+
+```json
+{
+  "date": "2026-11-02",
+  "state": "generated",
+  "stats": { "…同上…" },
+  "summary": {
+    "headline": "完成了一部分，明天可以少排一点",
+    "points": [
+      "计划 3 条，完成 1 条，完成率 33%。",
+      "还有 2 条停在待处理，可以补记一下完成情况。"
+    ],
+    "source": "rule",
+    "generated_at": "2026-11-03T09:42:10+08:00"
+  }
+}
+```
+
+`source` 目前恒为 `rule`：按完成率分档生成，不调模型（要能被测试断言，也要在没配 API Key 的机器上照常工作）。
+`agent` 是留给后续模型生成的取值，接进来不用改接口和前端。
+
+文案分档：100% 全部完成 / ≥60% 完成过半 / >0 完成了一部分 / 0 一条都没完成 / 当天无记录 这天没有安排任何活动。
+
+---
+
 ## Agent
 
 ### POST /api/agent/suggest
