@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .config import get_config
 from .db import init_db
 from .errors import install_error_handlers
-from .routers import activities, agent, auth, proposals, settings, stats
+from .routers import activities, agent, auth, proposals, settings, stats, summary
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +26,10 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+        # Capacitor APK：WebView 的 origin（androidScheme=http → http://localhost）
+        "http://localhost",
+        "https://localhost",
+        "capacitor://localhost",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -38,6 +42,7 @@ app.include_router(auth.router)
 app.include_router(settings.router)
 app.include_router(activities.router)
 app.include_router(stats.router)
+app.include_router(summary.router)
 app.include_router(proposals.router)
 app.include_router(agent.router)
 

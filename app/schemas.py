@@ -67,6 +67,42 @@ class WeeklyOut(BaseModel):
     daily: list[DayStat]
 
 
+class DailyStats(BaseModel):
+    """某一天的客观统计，永远从 activities 现算，不受总结生成与否影响。"""
+
+    date: str
+    total: int
+    completed: int
+    postponed: int
+    skipped: int
+    # 仍是 planned 的条数；命名与 WeeklyOut.pending 保持一致
+    pending: int
+    # 完成率 = completed / total。用 total 当分母是有意的：
+    # 推迟会派生新记录，分母变大反而更接近「这天实际需要处理几次」。
+    completion_rate: int
+
+
+class DailySummaryBody(BaseModel):
+    headline: str
+    points: list[str]
+    source: str
+    generated_at: str
+
+
+class DailySummaryOut(BaseModel):
+    """`state` 是给前端做分支用的唯一判据。
+
+    - `not_generated`：这天没有生成过总结，`summary` 必为 null。
+      前端必须显示「尚未生成」，不能拿 stats 拼一段话冒充。
+    - `generated`：`summary` 有值。
+    """
+
+    date: str
+    state: str
+    stats: DailyStats
+    summary: DailySummaryBody | None = None
+
+
 class SuggestIn(BaseModel):
     message: str = ""
 

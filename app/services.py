@@ -16,8 +16,16 @@ from sqlalchemy.orm import Session
 from . import catalog, scheduler
 from .config import get_config
 from .errors import AppError
-from .models import Activity, ActivitySettings
-from .schemas import ActivityOut, DayStat, SettingsIn, WeeklyOut
+from .models import Activity, ActivitySettings, DailySummary
+from .schemas import (
+    ActivityOut,
+    DailyStats,
+    DailySummaryBody,
+    DailySummaryOut,
+    DayStat,
+    SettingsIn,
+    WeeklyOut,
+)
 from .scheduler import Spec, hhmm
 
 STATUS_TEXT = {
@@ -372,4 +380,166 @@ def weekly(db: Session, user_id: str) -> WeeklyOut:
         skipped=counters["skipped"],
         pending=counters["planned"],
         daily=daily,
+    )
+
+
+# ---------------------------------------------------------------------------
+# 每日总结
+# ---------------------------------------------------------------------------
+
+
+def check_day(raw: str | None) -> str:
+    """把 ?date= 归一成 YYYY-MM-DD，缺省为「昨天」。
+
+    默认取昨天是因为日报本身就是回头看：今天还没过完，统计完成率没有意义。
+    """
+    if not raw:
+        return (now_local().date() - timedelta(days=1)).isoformat()
+
+    try:
+        parsed = Date.fromisoformat(raw)
+    except ValueError as exc:
+        raise AppError(400, "INVALID_DATE", "date 需要是 YYYY-MM-DD 格式", "date") from exc
+
+    if parsed > now_local().date():
+        raise AppError(400, "FUTURE_DATE", "不能查看未来日期的总结", "date")
+
+    return parsed.isoformat()
+
+
+def daily_stats(db: Session, user_id: str, day: str) -> DailyStats:
+    """当天统计，永远现算。
+
+    不在生成总结时把数字抄一份存起来，是因为用户完全可能在生成之后
+    再补记一条活动；抄下来的数字会立刻变成假的。这里每次查都是真实值。
+    """
+    rows = list(
+        db.scalars(
+            select(Activity).where(Activity.user_id == user_id, Activity.day == day)
+        ).all()
+    )
+
+    counters = {"planned": 0, "completed": 0, "postponed": 0, "skipped": 0}
+    for item in rows:
+        counters[item.status] = counters.get(item.status, 0) + 1
+
+    total = len(rows)
+    completed = counters["completed"]
+
+    return DailyStats(
+        date=day,
+        total=total,
+        completed=completed,
+        postponed=counters["postponed"],
+        skipped=counters["skipped"],
+        pending=counters["planned"],
+        completion_rate=0 if total == 0 else round(completed * 100 / total),
+    )
+
+
+def _summary_body(row: DailySummary) -> DailySummaryBody:
+    try:
+        points = json.loads(row.points)
+    except json.JSONDecodeError:
+        points = []
+    return DailySummaryBody(
+        headline=row.headline,
+        points=[str(item) for item in points],
+        source=row.source,
+        generated_at=row.generated_at,
+    )
+
+
+def daily_summary(db: Session, user_id: str, raw_date: str | None = None) -> DailySummaryOut:
+    """读某天的总结。没生成过就返回 state=not_generated，绝不现编一段话。"""
+    day = check_day(raw_date)
+    stats = daily_stats(db, user_id, day)
+
+    row = db.scalar(
+        select(DailySummary).where(
+            DailySummary.user_id == user_id, DailySummary.day == day
+        )
+    )
+
+    return DailySummaryOut(
+        date=day,
+        state="generated" if row is not None else "not_generated",
+        stats=stats,
+        summary=_summary_body(row) if row is not None else None,
+    )
+
+
+def _compose(stats: DailyStats) -> tuple[str, list[str]]:
+    """规则生成总结文案，不调模型。
+
+    两个理由：一是要能被测试断言，二是没配 API Key 的机器上也得照常工作。
+    模型生成留给 source="agent"，以后接进来不用改接口和前端。
+    """
+    if stats.total == 0:
+        return (
+            "这天没有安排任何活动",
+            ["没有这天的安排记录，可能是休息日，也可能当天没打开过助手。"],
+        )
+
+    points = [
+        f"计划 {stats.total} 条，完成 {stats.completed} 条，完成率 {stats.completion_rate}%。"
+    ]
+    if stats.postponed:
+        points.append(
+            f"{stats.postponed} 条被推迟。同一时段反复被推迟的话，把它挪到另一个窗口比继续推迟更省事。"
+        )
+    if stats.skipped:
+        points.append(f"{stats.skipped} 条标记为「今天不方便」，属于正常取舍，不算失败。")
+    if stats.pending:
+        points.append(f"还有 {stats.pending} 条停在待处理，可以补记一下完成情况。")
+
+    if stats.completion_rate >= 100:
+        headline = "全部完成，节奏保持住了"
+    elif stats.completion_rate >= 60:
+        headline = "完成过半，整体节奏还在"
+    elif stats.completion_rate > 0:
+        headline = "完成了一部分，明天可以少排一点"
+    else:
+        headline = "这天一条都没完成"
+
+    return headline, points
+
+
+async def generate_daily_summary(
+    db: Session, user_id: str, raw_date: str | None = None
+) -> DailySummaryOut:
+    """生成并落库。重复生成会覆盖，generated_at 刷新。
+
+    文案优先让模型写（`digest.compose`），模型不可用/返回脏数据时自动降级成
+    规则版——`source` 字段如实记录是 "agent" 还是 "rule"，前端和测试都能看到。
+    统计数字永远现算，两条路径一致。
+    """
+    from . import digest  # 延迟导入：digest 反过来要用 _compose
+
+    day = check_day(raw_date)
+    stats = daily_stats(db, user_id, day)
+    headline, points, source = await digest.compose(stats)
+
+    row = db.scalar(
+        select(DailySummary).where(
+            DailySummary.user_id == user_id, DailySummary.day == day
+        )
+    )
+    if row is None:
+        row = DailySummary(user_id=user_id, day=day)
+        db.add(row)
+
+    row.headline = headline
+    row.points = json.dumps(points, ensure_ascii=False)
+    row.source = source
+    row.generated_at = now_local().isoformat(timespec="seconds")
+
+    db.commit()
+    db.refresh(row)
+
+    return DailySummaryOut(
+        date=day,
+        state="generated",
+        stats=stats,
+        summary=_summary_body(row),
     )

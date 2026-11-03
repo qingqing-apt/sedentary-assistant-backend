@@ -233,6 +233,80 @@ pending ──新建议──> superseded （同一用户同一天只留一张�
 
 ---
 
+## 每日总结
+
+### GET /api/summary/daily?date=YYYY-MM-DD
+
+按天读日报。`date` 缺省为**昨天**（今天还没过完，完成率没有意义）。
+未来日期 → 400 `FUTURE_DATE`；格式不是 `YYYY-MM-DD` → 400 `INVALID_DATE`。
+
+```json
+{
+  "date": "2026-11-02",
+  "state": "not_generated",
+  "stats": {
+    "date": "2026-11-02",
+    "total": 3,
+    "completed": 1,
+    "postponed": 0,
+    "skipped": 0,
+    "pending": 2,
+    "completion_rate": 33
+  },
+  "summary": null
+}
+```
+
+`state` 只有两种取值：
+
+| state | summary | 含义 |
+|---|---|---|
+| `not_generated` | `null` | 这天没有生成过总结 |
+| `generated` | 对象 | 生成过，字段见下 |
+
+**`stats` 与 `state` 无关**，每次从 `activities` 现算。生成总结之后再补记活动，数字依然是真实的——
+这正是「不落库统计数字」的原因：抄一份下来会立刻过期。
+
+`not_generated` 时前端必须显示「尚未生成」，**不能拿 `stats` 拼一段话顶上**。
+
+### POST /api/summary/daily?date=YYYY-MM-DD
+
+生成并落库，需要登录态。重复调用覆盖旧内容并刷新 `generated_at`。
+
+```json
+{
+  "date": "2026-11-02",
+  "state": "generated",
+  "stats": { "…同上…" },
+  "summary": {
+    "headline": "完成了一部分，明天可以少排一点",
+    "points": [
+      "计划 3 条，完成 1 条，完成率 33%。",
+      "还有 2 条停在待处理，可以补记一下完成情况。"
+    ],
+    "source": "rule",
+    "generated_at": "2026-11-03T09:42:10+08:00"
+  }
+}
+```
+
+`source` 有两种取值：
+
+| source | 什么时候 | 说明 |
+|---|---|---|
+| `agent` | 配了 `LLM_BASE_URL` / `LLM_API_KEY` 且模型返回合规 | headline / points 由模型生成 |
+| `rule` | 没配 Key，或模型超时 / 报错 / 返回脏数据 | 按完成率分档，纯规则 |
+
+**降级是自动的**：模型出任何问题都返回 `rule`，接口不会 500，文案不会缺。
+校验很严（headline ≤ 40 字、points 1~3 条且非空、单条 ≤ 90 字），不合规就当失败处理——
+这段文字要直接展示并落库，宁可降级也不要半成品。
+
+两条路径的 `stats` 完全一致，因为统计永远现算。
+
+文案分档：100% 全部完成 / ≥60% 完成过半 / >0 完成了一部分 / 0 一条都没完成 / 当天无记录 这天没有安排任何活动。
+
+---
+
 ## Agent
 
 ### POST /api/agent/suggest
