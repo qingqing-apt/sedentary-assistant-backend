@@ -24,10 +24,10 @@ def daily(
 
 
 @router.post("/daily", response_model=DailySummaryOut, summary="生成某天的每日总结")
-def generate(
+async def generate(
     date: str | None = Query(default=None, description="YYYY-MM-DD，缺省为昨天"),
     db: Session = Depends(get_db),
     user_id: str = Depends(current_user),
 ):
     """生成并落库。需要登录态（受保护操作），重复调用覆盖旧内容。"""
-    return services.generate_daily_summary(db, user_id, date)
+    return await services.generate_daily_summary(db, user_id, date)

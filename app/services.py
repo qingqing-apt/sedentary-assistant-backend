@@ -505,13 +505,20 @@ def _compose(stats: DailyStats) -> tuple[str, list[str]]:
     return headline, points
 
 
-def generate_daily_summary(
+async def generate_daily_summary(
     db: Session, user_id: str, raw_date: str | None = None
 ) -> DailySummaryOut:
-    """生成并落库。重复生成会覆盖，generated_at 刷新。"""
+    """生成并落库。重复生成会覆盖，generated_at 刷新。
+
+    文案优先让模型写（`digest.compose`），模型不可用/返回脏数据时自动降级成
+    规则版——`source` 字段如实记录是 "agent" 还是 "rule"，前端和测试都能看到。
+    统计数字永远现算，两条路径一致。
+    """
+    from . import digest  # 延迟导入：digest 反过来要用 _compose
+
     day = check_day(raw_date)
     stats = daily_stats(db, user_id, day)
-    headline, points = _compose(stats)
+    headline, points, source = await digest.compose(stats)
 
     row = db.scalar(
         select(DailySummary).where(
@@ -524,7 +531,7 @@ def generate_daily_summary(
 
     row.headline = headline
     row.points = json.dumps(points, ensure_ascii=False)
-    row.source = "rule"
+    row.source = source
     row.generated_at = now_local().isoformat(timespec="seconds")
 
     db.commit()

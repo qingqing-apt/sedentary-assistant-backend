@@ -11,6 +11,21 @@ FROZEN = datetime(2026, 10, 30, 9, 0, tzinfo=TZ)
 YESTERDAY = "2026-10-29"
 
 
+@pytest.fixture(autouse=True)
+def _no_llm(monkeypatch):
+    """把模型钉成「未配置」。
+
+    本机 .env 里是有 Key 的，不钉的话这些用例会真的去调模型：既慢又不确定，
+    而且断言会随模型输出漂移。模型那条路径由 test_digest.py 单独覆盖。
+    """
+    from app import digest
+    from app.config import AppConfig
+
+    monkeypatch.setattr(
+        digest, "get_config", lambda: AppConfig(llm_base_url="", llm_api_key="")
+    )
+
+
 @pytest.fixture()
 def client():
     from app import services
