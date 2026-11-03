@@ -101,3 +101,33 @@ class Proposal(Base):
 
     created_at: Mapped[str] = mapped_column(String(40), default=_now_iso)
     updated_at: Mapped[str] = mapped_column(String(40), default=_now_iso)
+
+
+class DailySummary(Base):
+    """按天的总结。**只存"生成过的"**，没有记录就是没生成过。
+
+    这张表存在的唯一理由是让「尚未生成」这个状态可表达。
+
+    如果改成「查不到就现算一段文案返回」，前端永远拿不到 not_generated，
+    验收里"正确显示尚未生成状态，不伪造数据"这条就没法证明——因为每个
+    未生成的日期看上去都和生成过的一样。
+
+    统计口径（完成/推迟/跳过数）**不落库**，每次从 activities 现算：
+    用户在生成总结之后仍然可以补记一条活动，落库的数字会立刻过期，
+    而现算永远是真实值。summary 表只负责「那天有没有生成过一段话」。
+    """
+
+    __tablename__ = "daily_summaries"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uid)
+    user_id: Mapped[str] = mapped_column(String(64), index=True)
+    day: Mapped[str] = mapped_column(String(10), index=True)
+
+    headline: Mapped[str] = mapped_column(String(120), default="")
+    # ["完成 2 条，占计划 67%", "..."]
+    points: Mapped[str] = mapped_column(Text, default="[]")
+    # rule（当前实现）/ agent（预留给模型生成）
+    source: Mapped[str] = mapped_column(String(16), default="rule")
+
+    generated_at: Mapped[str] = mapped_column(String(40), default=_now_iso)
+
