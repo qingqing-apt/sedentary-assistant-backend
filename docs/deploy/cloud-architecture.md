@@ -99,7 +99,10 @@
 | `api` | `sedentary-api:<sha>` | 仅 expose 8000 | `data:/app/data` | `unless-stopped` |
 | `runtime` | `sedentary-runtime:<sha>` | 仅 expose 3000 | `threads:/app/.runtime-data` | `unless-stopped` |
 
-关键指令（示意，最终文件在 `deploy/compose.yaml`）：
+关键指令（示意，实际文件在 `frontend/deploy/compose.yaml`；部署脚本 `frontend/deploy/deploy.sh`，手册 `frontend/deploy/README.md`）：
+
+> `deploy/` 放在前端仓库：三个镜像里有两个（web、runtime）由它构建，边缘 nginx 配置也在这里。
+> `nginx.conf` 在构建时烤进镜像，不从宿主机挂载 —— 路由规则跟着 tag 走，回滚镜像时路由一起回滚。
 
 ```yaml
 services:
@@ -286,6 +289,14 @@ CI 里没有 Docker 构建 —— 镜像构建放在 `release.yml`，等 Dockerf
 3. 不执行数据库迁移（本项目没有迁移框架，改表要走代码评审 + 手工备份）；
 4. `apply` 任一步失败 → 自动 `rollback last-good` 并让 job 失败；
 5. 每次 `apply` 前把旧 tag 写进 `state/last-good.json`，这是回滚唯一的依据。
+
+状态文件只有三个（都在 `deploy/state/`，不进 Git）：
+
+| 文件 | 含义 |
+|---|---|
+| `current.json` | 现在正在跑的 api/web/runtime tag + 部署时间 |
+| `last-good.json` | 上一次验证通过的版本；`rollback` 默认读它，回滚后会与 current 互换，所以能滚回去 |
+| `history.jsonl` | 每次 apply/rollback 追加一行，事后溯源用 |
 
 ### 6.7 不做自动化的事
 
