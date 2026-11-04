@@ -240,7 +240,7 @@ PR ──► backend-ci / frontend-ci（测试 + 构建）
 
 | 名称 | 类型 | 存哪 | 内容 |
 |---|---|---|---|
-| `ACR_REGISTRY` / `ACR_NAMESPACE` | 变量 | 仓库 | `registry.cn-hangzhou.aliyuncs.com` / 命名空间 |
+| `ACR_REGISTRY` / `ACR_NAMESPACE` | 变量 | 仓库 | `crpi-1bv9mjbeu8xhh314.cn-guangzhou.personal.cr.aliyuncs.com` / `gcu` |
 | `ACR_USERNAME` / `ACR_PASSWORD` | 密钥 | 仓库 | **只用于推送**的 ACR 凭据（限定该命名空间） |
 | `ECS_HOST` / `ECS_USER` / `ECS_SSH_KEY` | 密钥 | Environment `test` | 部署通道 |
 | `DEPLOY_DOMAIN` | 变量 | Environment `test` | 用于外部健康检查 |
@@ -476,8 +476,12 @@ LLM_MODEL=deepseek-chat
 LLM_TIMEOUT=30
 
 # compose 插值
-ACR=registry.cn-hangzhou.aliyuncs.com/<namespace>
+ACR=crpi-1bv9mjbeu8xhh314.cn-guangzhou.personal.cr.aliyuncs.com
 ```
+
+个人版实例固定在**广州**：一个账号只能在一个地域创建个人版实例，ECS 也应选在同一地域。
+同地域 ECS 可改用内网域名 `crpi-1bv9mjbeu8xhh314-vpc.cn-guangzhou.personal.cr.aliyuncs.com` 拉取，
+不消耗公网流量；CI 在公网，推送仍用上面那个公网域名。
 
 注意 `DATABASE_URL` 在容器里是**四个斜杠**（`sqlite:///` + 绝对路径 `/app/data/app.db`），与本地相对路径写法不同。
 
