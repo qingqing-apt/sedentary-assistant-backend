@@ -1,0 +1,49 @@
+name: build-image
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  api:
+    name: build + smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: 构建镜像
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          load: true
+          push: false
+          tags: sedentary-api:ci
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+
+      # 开发机没有 Docker，所以这里不只验“构建成功”，还要验“能起来、接口能用”
+      - name: 启动并检查 /api/health
+        run: |
+          docker run -d --name api -p 8000:8000 sedentary-api:ci
+          ok=0
+          for _ in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8000/api/health; then
+              ok=1
+              break
+            fi
+            sleep 2
+          done
+          docker logs api
+          docker inspect -f 'user={{.Config.User}} health={{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' api || true
+          if [ "$ok" != "1" ]; then
+            echo "::error::容器已启动但 /api/health 不可用"
+            exit 1
+          fi

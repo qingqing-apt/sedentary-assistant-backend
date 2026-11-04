@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+tests/
+docs/
+data/
+.env
+.env.*
+*.db
+*.db-wal
+*.db-shm
+.git/
+.github/
+Dockerfile
+.dockerignore
+README.md
