@@ -29,4 +29,6 @@ HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=5 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=3)"
 
 # SQLite 单写者 + 进程内 ContextVar 身份，只能单 worker
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+# 用 opentelemetry-instrument 包一层：自动发现已安装的 instrumentation，
+# 没有配置 OTEL_EXPORTER_OTLP_ENDPOINT 时只是不导出，不影响启动。
+CMD ["opentelemetry-instrument", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

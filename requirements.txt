@@ -13,3 +13,11 @@ pytest==8.3.4
 agent-framework==1.23.0
 agent-framework-ag-ui==1.7.0
 agent-framework-openai==1.17.0
+
+# ---- OpenTelemetry（链路追踪）----
+# 不钉死版本：distro 与各 instrumentation 属于同一发布批次，交给 pip 解析，
+# 避免手动钉版本造成矩阵冲突（装错版本会静默不产生 span）。
+opentelemetry-distro[otlp]
+opentelemetry-instrumentation-fastapi
+opentelemetry-instrumentation-sqlalchemy
+opentelemetry-instrumentation-httpx
